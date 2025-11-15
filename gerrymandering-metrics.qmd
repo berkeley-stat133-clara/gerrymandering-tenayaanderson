@@ -5,7 +5,118 @@ format: typst
 
 ### 2024 Election Results and the 2024 District Map
 
+Assemble table and calculate mean-median score
+
+```{r}
+
+sv24_mm <- sv24_clean |>
+    mutate(
+    dem_total = CNGDEM01 + CNGDEM02,
+    rep_total = CNGREP01 + CNGREP02,
+    winner = case_when(
+      dem_total > rep_total ~ "Dem wins",
+      rep_total > dem_total ~ "Rep wins",
+      TRUE ~ NA)) |> # determine which candidate won
+    mutate(prop_rep = rep_total / (rep_total + dem_total)) # add a prop_rep column
+
+mean_median <- sv24_mm |>
+    summarize(mean_p = mean(prop_rep, na.rm = TRUE),
+    med_p = median(prop_rep, na.rm = TRUE)) |>
+    mutate(score = mean_p - med_p)
+
+mean_median <- mutate(mean_median, score = mean_p - med_p)
+
+
+```
+
+Mean-Median Score = 0.0075
+
+
+Assemble table and calculate Efficiency Gap
+
+```{r}
+
+# function to calculate number of wasted votes
+
+n_wasted_func <- function(cand_a, cand_b) {  
+  w_threshold <- floor((cand_a + cand_b) / 2) + 1
+  case_when(
+    cand_a == 0 ~ 0,
+    cand_b == 0 ~ cand_a,
+    cand_a > cand_b ~ cand_a - w_threshold,   # winner wasted votes
+    TRUE ~ cand_a                              # loser wastes all votes
+  )
+}
+
+# add dem_wasted and rep_wasted columns
+
+sv24_eg <- sv24_mm |>
+ mutate(
+ d_wasted = n_wasted_func(dem_total, rep_total),
+ r_wasted = n_wasted_func(rep_total, dem_total))
+ 
+eg_24 <- sv24_eg|>
+ summarize(
+ total_d_wasted = sum(d_wasted, na.rm = TRUE),
+ total_r_wasted = sum(r_wasted, na.rm = TRUE),
+ total_votes = sum(dem_total + rep_total, na.rm = TRUE)) |>
+ mutate(EG = (total_d_wasted - total_r_wasted) / total_votes)
+
+```
+
+total_d_wasted = 4164545 
+total_r_wasted = 3822497 
+total_votes = 15050032        
+EG = 0.01305917              
 
 
 ### 2024 Election Results and the proposed 2025 District Map
 
+Assemble table and calculate Mean-Median score
+
+```{r}
+
+prop50_mm <- prop50_votes |>
+    mutate(
+    winner = case_when(
+      DEM > REP ~ "Dem wins",
+      REP > DEM ~ "Rep wins",
+      TRUE ~ NA)) |> # determine which candidate won
+    mutate(prop_rep = REP / (REP + DEM)) # add a prop_rep column
+
+prop50_mean_median <- prop50_mm |>
+    summarize(mean_p = mean(prop_rep, na.rm = TRUE),
+    med_p = median(prop_rep, na.rm = TRUE)) |>
+    mutate(score = mean_p - med_p)
+
+prop50_mean_median <- mutate(prop50_mean_median, score = mean_p - med_p)
+
+```
+
+Mean-Median score =  -0.0217274987828582
+
+
+Assemble table and calculate Efficiency Gap
+
+```{r}
+
+# add dem_wasted and rep_wasted columns
+
+prop50_eg <- prop50_votes |>
+ mutate(
+ d_wasted = n_wasted_func(DEM, REP),
+ r_wasted = n_wasted_func(REP, DEM))
+ 
+eg_stats_prop50 <- prop50_eg |>
+ summarize(
+ total_d_wasted = sum(d_wasted, na.rm = TRUE),
+ total_r_wasted = sum(r_wasted, na.rm = TRUE),
+ total_votes = sum(DEM + REP, na.rm = TRUE)) |>
+ mutate(EG = (total_d_wasted - total_r_wasted) / total_votes)
+
+```
+
+total_d_wasted = 2089786
+total_r_wasted = 3953414 
+total_votes = 12086452       
+EG = -0.1541915
