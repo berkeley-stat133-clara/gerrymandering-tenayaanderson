@@ -3,3 +3,88 @@ title: Data Cleaning
 format: typst
 ---
 
+Load libraries and data
+```{r}
+library(tidyverse)
+library(dplyr)
+library(stringr)
+library(readxl)
+library(sf)
+library(gt)
+
+sv24 <- read.csv("data/state_g24_sov_data_by_g24_svprec.csv")
+
+SR24 <- read.csv("C:/Users/tenay/Downloads/state_g24_voters_by_g24_srprec/state_g24_voters_by_g24_srprec.csv")
+
+# candidates <- read.csv("C:/Users/tenay/Downloads/g24-candidates-by-district.csv")
+
+# results <- read_excel("C:/Users/tenay/Downloads/g24-results-by-district.xlsx")
+
+SR_shp24 <- st_read("data/shapefiles/srprec_state_g24_v01_shp/srprec_state_g24_v01_shp.shp")
+
+prop50_shp <- st_read("data/shapefiles/ab604/AB604/AB604.shp")
+
+old_dist_shp <-st_read("data/shapefiles/tl_2024_06_cd119/tl_2024_06_cd119.shp")
+```
+
+Clean data 
+
+```{r}
+# get rid of columns with data that isn't needed
+
+sv24_clean <- sv24 |>
+    select(c(COUNTY, FIPS, SVPREC, SVPREC_KEY, CDDIST, TOTREG, TOTVOTE, CNGDEM01, CNGDEM02, CNGIND01, CNGREP01, CNGREP02))
+
+sv24_clean <- sv24_clean |>
+    mutate(across(c(CNGDEM01, CNGDEM02, CNGIND01, CNGREP01, CNGREP02), ~na_if(., "***"))) |> # replace *** with NA
+    mutate(across(c(CNGDEM01, CNGDEM02, CNGIND01, CNGREP01, CNGREP02), ~as.integer(.))) |> # convert strings to integers
+    filter(CDDIST != 0)
+
+```
+
+
+Shapefile cleaning and joining
+
+```{r}
+
+# get rid of unnecessary columns
+
+SR24_clean <- SR24 |>
+    select(COUNTY, FIPS, SRPREC, SRPREC_KEY, TOTREG_R, DEM, REP, AIP, PAF, MSC, LIB, NLP, GRN, REF, DCL)
+
+# join geometries from shapefile
+
+SR24_with_shp <- inner_join(SR24_clean, SR_shp24[c("SRPREC_KEY", "geometry")], by = "SRPREC_KEY")
+
+# convert to spatial data frame and set CRS
+
+SR24_with_shp <- SR24_with_shp |>
+    st_sf() |>
+    st_transform(crs = 3310)
+
+prop50_shp <- st_transform(prop50_shp, crs = 3310)
+
+# correct some errors in the geometries (code from instructions)
+
+SR24_with_shp <- SR24_with_shp |>
+ st_transform(3310) |> # switch to equal area projection first
+ st_set_precision(1) |> # snap points to 1 m grid
+ st_make_valid() |> # fix self-intersections/bow-ties
+ st_collection_extract("POLYGON")
+
+```
+
+Conduct spatial interpolation (approach A)
+
+```{r}
+prop50_votes <- st_interpolate_aw(
+  SR24_with_shp[, c("DEM", "REP")],
+  prop50_shp,
+  extensive = TRUE
+)
+```
+
+
+
+
+```
