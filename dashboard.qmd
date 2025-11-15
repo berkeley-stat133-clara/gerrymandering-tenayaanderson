@@ -1,5 +1,82 @@
 ---
-title: Dashboard
-format: dashboard
+format:
+  html:
+    theme: flatly
+    toc: true
+    toc-depth: 2
+    code-fold: true
+    code-tools: false
+execute:
+  echo: false
+  warning: false
+  message: false
 ---
 
+# Introduction
+
+This dashboard compares the **actual 2024 congressional election results** with a **hypothetical rerun** under the district map proposed and passed under California's Prop 50. Using SR precinct-level vote data and an area-weighted interpolation approach, we estimate how seat outcomes shift. Using two metrics, Mean-Median and the Efficiency Gap, we estimate how Prop 50 might affect the "fairness" of the 2026 Midterm Election.
+
+
+## Map Comparison
+
+
+:::: {.columns}
+
+
+::: {.column width="50%"}
+### Districts before Prop 50
+
+
+```{r}
+library(ggplot)
+library(dplyr)
+library(sf)
+library(tidyverse)
+
+SR24_with_shp |>
+    mutate(winner = case_when(DEM > REP ~ "Dem wins",
+      REP > DEM ~ "Rep wins",
+      TRUE ~ NA)) |>
+    ggplot() +
+    geom_sf(aes(fill = winner)) +
+    scale_fill_manual(values = c("blue","red")) +
+    theme_void() +
+    labs(fill = "Winner")
+```
+:::
+
+
+::: {.column width="50%"}
+
+### Districts after Prop 50
+
+
+```{r}
+ggplot(prop50_mm) +
+geom_sf(aes(fill = winner)) +
+scale_fill_manual(values = c("blue","red")) +
+theme_void()
+```
+:::
+
+
+::::
+
+
+## Gerrymandering Metrics
+
+### Mean-Median Score before Prop 50: 0.0075
+### Efficiency Gap before Prop 50: 
+    Democratic votes wasted = 4164545 
+    Republican votes wasted = 3822497        
+    EG = 0.01305917     
+
+### Mean-Median Score after Prop 50: -0.0217274987828582
+### Efficiency Gap after Prop 50: 
+    Democratic votes wasted = 2089786
+    Republican votes wasted = 3953414       
+    EG = -0.1541915  
+
+
+### The difference in wasted votes was 11.8% in favor of Democrats.
+---
